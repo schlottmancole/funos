@@ -1,0 +1,28 @@
+
+Here I am following this tutorial
+https://wiki.osdev.org/Bare_Bones
+
+Tutorial serves as example to create a minimal system kernel for 32-bit x86 and boot it.
+
+Will use:
+    - GNU Linker from Binutils to link object files
+    - GNU Assembler (or optionally NASM) to assemble instructions into object files
+    - GNU Compiler Collection to compile high-level code into assembly
+    - The C Language to write the high-level parts of your kernel
+    - GRUB bootloader to bootload your kernel using Multiboot protocol that loads us into 32-bit protected mode with paging disabled
+    - The ELF as the executable format which controls where and how the kernel is loaded
+
+Cannot complete with an x86_64 cross compiler because GRUB is only able to load 32-bit multiboot kernels.
+
+This basic tutorial requires just 3 files!:
+- boot.s: kernel entry point
+- kernel.c: kernel code
+- linker.ld: for linking the previous files
+
+The kernel is passed a very minimal environment in which the stack is not set up, virtual memory is not yet enabled, and hardware is not initialized.
+
+Luckily the Multiboot Standard makes it so by putting appropriate values in some global variables (the multiboot header) the bootloader will find them and recognize the kernel as multiboot compatible.
+
+1. Create the boot.s file to initialize stack and call kernel c code
+    assemble boot.s with
+    ../cross/bin/i686-elf-as boot.s -o boot.o

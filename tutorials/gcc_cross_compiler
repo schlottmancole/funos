@@ -1,0 +1,37 @@
+Here I am following this tutorial
+https://wiki.osdev.org/GCC_Cross-Compiler
+
+1. preparing for cross-compiler build
+To prepare for building a cross-compiler for your os, you will need a handful of GNU tools.
+On Fedora I can sudo dnf install the following
+gcc
+gcc-c++
+make
+bison
+flex
+gmp-devel
+libmpc-devel
+mpfr-devel
+textinfo
+libis1-devel
+
+make is the build tool
+bison is a language parsing tool
+flex is a lexer
+GMP (GNU Multiple Precision Arithemetic Library) - useful for making programs with arbitrarily large math like for cryptography. multiple precision libraries for integers (mpz), rationals (mpq), and floating point (mpf).
+MPC is library for arbitrarily large arithmetic of complex numbers
+MPFR is an extension on mpf that accounts for more correct rounding behaviors
+Texinfo is the official documentation format for GNU project. It uses a single source file to produce output in a number of formats like HTML, PDF, Info, DocBook, LaTeX, EPUB3. Texinfo is needed to build Binutils
+ISL is a library for manipulating sets and relations of integers
+
+2. Getting software to be built
+Need to download the source code for Binutils and GCC since we will be building those for our own OS.
+
+3. Building the Cross Compiler
+- build binutils
+- build gcc
+
+At this point, the compiler can't compile most normal C programs because you can't include almost any of the standard headers. This is because the platform doesn't have a standard library yet. 
+
+C standard defines 2 executing environments. A kernel is "freestanding". Everything in user space is "hosted". Freestanding envs only need a subset of the C library (float.h, iso646.h, limits.h, stdalign.h, stdarg.h, stdbool.h, stddef.h, stdint.h, and stdnoreturn.h). They consist of typedefs and #define s only so they don't have corresponding .c files. 
+- To have those includes work properly, you need to build your kernel with the -ffreestanding flag. Otherwise it may look for a stdlib that doesn't exist yet.
