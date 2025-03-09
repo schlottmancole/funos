@@ -26,3 +26,12 @@ Luckily the Multiboot Standard makes it so by putting appropriate values in some
 1. Create the boot.s file to initialize stack and call kernel c code
     assemble boot.s with
     ../cross/bin/i686-elf-as boot.s -o boot.o
+
+2. Writing a kernel program
+
+3. Creating a linker.ld
+
+4. Create a bootable image using a grub.cfg file and grub-mkrescue
+
+5. QEMU
+	while I could just boot put this iso image somewhere and boot from it, it would require rebooting my laptop everytime to do so.

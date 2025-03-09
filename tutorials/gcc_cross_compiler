@@ -15,6 +15,12 @@ mpfr-devel
 textinfo
 libis1-devel
 
+On arch I install the packages:
+base-devel
+gmp
+libmpc
+mpfr
+
 make is the build tool
 bison is a language parsing tool
 flex is a lexer
@@ -28,6 +34,7 @@ ISL is a library for manipulating sets and relations of integers
 Need to download the source code for Binutils and GCC since we will be building those for our own OS.
 
 3. Building the Cross Compiler
+Will be configuring both with PREFIX to be $HOME/funos/cross and TARGET=i686-elf. Then add $PREFIX/bin to PATH so the install check works?
 - build binutils
 - build gcc
 
