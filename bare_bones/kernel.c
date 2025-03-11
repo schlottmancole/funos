@@ -77,9 +77,71 @@ void terminal_writestring(const char* data) {
 	terminal_write(data, strlen(data));
 }
 
+// Serial Port Address
+#define PORT 0x3f8 // COM1
+
+// assembly convenience functions
+static inline void outb(uint16_t port, uint8_t val) {
+	__asm__ volatile ( "outb %b0, %w1" : : "a"(val), "Nd"(port) : "memory");
+}
+
+static inline uint8_t inb(uint16_t port) {
+	uint8_t ret;
+	__asm__ volatile ( "inb %w1, %b0" : "=a"(ret) : "Nd"(port) : "memory");
+	return ret;
+}
+
+// serial 
+static int init_serial() {
+	outb(PORT + 1, 0x00); // disable interrupts
+	outb(PORT + 3, 0x80); // Enable DLAB (set baud rate divisor)
+	outb(PORT + 0, 0x03); // set divisor to 3 (lo byte) 38400 baud
+	outb(PORT + 1, 0x00); // (hi byte)
+	outb(PORT + 3, 0x03); // 8 bits, no parity, one stop bit
+	outb(PORT + 2, 0xC7); // enable FIFO, clear them, with 15-byte threshold
+	outb(PORT + 4, 0x0B); // IRQs enabled, RTS/DSR set
+	outb(PORT + 4, 0x1E); // set in loopback mode, test the serial chip
+	outb(PORT + 0, 0xAE); // test write
+	
+	if(inb(PORT + 0) != 0xAE) {
+		return 1;
+	}
+
+	outb(PORT + 4, 0x0F); // else disable loopback
+	return 0;
+	
+}
+
+int serial_received() {
+	return inb(PORT + 5) & 1;
+}
+
+char read_serial() {
+	while (serial_received() == 0);
+	
+	return inb(PORT);
+}
+
+int is_transmit_empty() {
+	return inb(PORT + 5) & 0x20;
+}
+
+void write_serial(char a) {
+	while (is_transmit_empty() == 0);
+
+	outb(PORT, a);
+}
+
+void write_str(char *str) {
+	while(*str) write_serial(*str++);
+}
+
 void kernel_main(void) {
-	terminal_initialize();
-	terminal_writestring("Hello, kernel World!\n");
+	// terminal_initialize();
+	// terminal_writestring("Hello, kernel World!\n");
+	
+	init_serial();
+	write_str("Hello World!");
 }
 
 
