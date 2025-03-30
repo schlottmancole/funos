@@ -61,7 +61,20 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
 }
 
 void terminal_putchar(char c) {
-	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+	switch(c) {
+		case 13:
+	        case '\n':
+			terminal_column = 0;
+			terminal_row += 1;
+			break;
+		case 127:
+			terminal_putentryat(' ', terminal_color, --terminal_column, terminal_row);
+			terminal_column -= 1;
+			break;
+		default:
+			terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+			break;
+	}
 	if(++terminal_column == VGA_WIDTH) {
 		terminal_column = 0;
 		if(++terminal_row == VGA_HEIGHT) terminal_row = 0;
@@ -118,7 +131,6 @@ int serial_received() {
 
 char read_serial() {
 	while (serial_received() == 0);
-	
 	return inb(PORT);
 }
 
@@ -128,7 +140,6 @@ int is_transmit_empty() {
 
 void write_serial(char a) {
 	while (is_transmit_empty() == 0);
-
 	outb(PORT, a);
 }
 
@@ -136,12 +147,115 @@ void write_str(char *str) {
 	while(*str) write_serial(*str++);
 }
 
-void kernel_main(void) {
-	// terminal_initialize();
-	// terminal_writestring("Hello, kernel World!\n");
+typedef struct {
+	uint32_t flags;
+	uint32_t mem_lower;
+	uint32_t mem_upper;
+	uint32_t boot_device;
+	uint32_t cmdline;
+	uint32_t mods_count;
+	uint32_t mods_addr;
+	uint32_t syms0;
+	uint32_t syms1;
+	uint32_t syms2;
+	uint32_t mmap_length;
+	uint32_t mmap_addr;
+	uint32_t drives_length;
+	uint32_t drives_addr;
+	uint32_t config_table;
+	uint32_t boot_loader_name;
+	uint32_t apm_table;
+	uint32_t vbe_control_info;
+	uint32_t vbe_mode_info;
+	uint16_t vbe_mode;
+	uint16_t vbe_interface_seg;
+	uint32_t vbe_interface_off;
+	uint32_t vbe_interface_len;
+	uint64_t framebuffer_addr;
+	uint32_t framebuffer_pitch;
+	uint32_t framebuffer_width;
+	uint32_t framebuffer_height;
+	uint8_t framebuffer_bpp;
+	uint8_t framebuffer_type;
+	uint8_t color_info[5];
+} multiboot_table;
+
+
+void green(const multiboot_table *mb) {
+	uint32_t width = mb->framebuffer_width;
+	uint32_t height = mb->framebuffer_height;
+	uint32_t *screen = (uint32_t*)mb->framebuffer_addr;
 	
-	init_serial();
-	write_str("Hello World!");
+	for(uint32_t i=0; i < width*height; i++) { screen[i] = 0xC0C0C0; }
+
 }
 
+void print_hex(uint32_t w) {
+	write_str("0x");
+	for(int32_t i=28; i >= 0; i-=4){
+		uint8_t b = (w >> i) & 0xF;
+		if(b > 9) { b += 55; }
+		else { b += 48; }
+		write_serial((char) b);
+	}
+}
+// 
+// 
+// EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
+// UINTN SizeOfInfo, numModes, nativeMode;
+// 
+// status = uefi_call_wrapper(gop->QueryMode, 4, gop, gop->Mode==NULL? 0 : gop->Mode->Mode, &SizeOfInfo, &info);
+// if (status == EFI_NOT_STARTED) {
+// 	status = uefi_call_wrapper(gop->SetMode, 2, gop, 0);
+// }
+// if (EFI_ERROR(status)) {
+// 	PrintLn(L"Unable to get native mode");
+// } else {
+// 	nativeMode = gop->Mode->Mode;
+// 	numModes = gop->Mode->MaxMode;
+// }
+
+void text_mode_main() {
+	terminal_initialize();
+	init_serial();
+	terminal_writestring("Hello, kernel World!\n");
+	while(1) {
+	       terminal_putchar(read_serial());
+	}	
+}
+
+void serial_main() {
+
+	init_serial();
+	write_str("Hello World!");
+	while(1) {
+	       write_serial(read_serial());
+	}	
+}
+
+void show_multiboot_table(const multiboot_table* mb, uint32_t magic) {
+	init_serial();
+	write_str("\nmagic: ");
+	print_hex(magic);
+	write_str("\nMB Addr: ");
+	print_hex((uint32_t) mb);
+
+	// for(uint32_t* p = (uint32_t*)mb; (uint32_t)p < (uint32_t)(mb+1); p++){
+	// 	write_str("\n");
+	// 	print_hex((uint32_t)p);
+	// 	write_str(": ");
+	// 	print_hex(*p);
+	// }
+
+	write_str("\nwidth: ");
+	print_hex(mb->framebuffer_width);
+	write_str("\nheight: ");
+	print_hex(mb->framebuffer_height);
+
+	// *((int*)(mb->framebuffer_addr)) = 0x00FF0000;
+}
+
+void kernel_main(const multiboot_table* mb, uint32_t magic) {
+	text_mode_main();	
+}
 
