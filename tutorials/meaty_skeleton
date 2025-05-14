@@ -1,0 +1,20 @@
+
+Going over how I could structure an operating system. Inspired by the Stan dard system extreme.
+Tutorial embeds a few important concepts:
+- existence of a libc
+- other minor Unix and ABI semantics
+
+Expected to have done Bare Bones, but probably want to start clean for this tutorial
+
+Side note on target triplets:
+- Core concept in GNU build systems describing the platform on which code runs
+- CPU family/model, vendor, and operating system
+
+The cross-binutils MUST be configured with "--with-sysroot", otherwise linking will mysteriously fail
+Need to have my own version of /usr/include and /usr/lib for compiler to find headers and libraries when compiling for my custom operating system. They make a directory called sysroot within their os project to act as the fake root directory. Build process will build kernel, standard library, programs and gradually install them into the system root location. This way after formatting a partition on a blank drive I can copy this fake sysroot folder onto the formatted drive to serve as the root filesystem. Then after adding appropriate config files(??) and configuring the boot loader to load the kernel from that location and using the disk driver to read files from there.
+By configuring the compile chain with sysroot it will look in ${SYSROOT}/usr/lib as expected. The --without-headers option prevents the compiler from looking for ${SYSROOT}/usr/include. But that will be used when we have a user-space and a libc. 
+As a temporary workaround?? we get around it by passing -isystem=/usr/include
+They store all architecture dependednt source files inside an arch/ directory with its own sub-makefile with special configurations. This way it makes it easier to port to other systems in the future.
+They move the kernel into a dedicated directory kernel/
+The kernel installs its public kernel headers into sysroot/usr/include/kernel, which is useful if the kernel has modules that want to easily include those public headers from the main kernel.
+libc and libk are two versions of the same library, but both stored in the libc/ location. libk is the version only containing freestanding code. It includes no user-space notions like system calls. Each function is put in a file with associated name.

@@ -1,0 +1,81 @@
+
+Babystep is a series of tutorials relating to simple boot information
+
+1:
+ Smallest example of booting code from a disk.
+ CPU starts in real mode and BIOS loads the code at address 0000:7c00.
+ Some older BIOSes expected a boot signature (0xAA55) at the end of the block.
+ Interrupts are not masked by default, so they can be masked with "cli".
+ 
+2:
+ In the assembly code written in this exercise we learn to use the ORG directive to offset labels.
+ Learn to use the lodsb. the lods (load string commands) will move data into EAX. LODSB moves DS:[SI] into AL then either increments or decrements SI (depending on direction flag)
+ we check for null characters by using an arithmetic operation on AL then using jz.
+
+
+
+
+
+
+misc notes:
+ We call a BIOS interrupt handler repeatedly to print our characters to the screen.
+ Since we boot into real mode, we need to worry about addressing 1MB address space with segments.
+ BIOS runs in real address mode,, so programs that call BIOS must also run in real mode or switch to real mode before calling BIOS then switch back.
+ So modern OSes will use BIOS interrupt calls to probe/initialize HW during boot, but will sue their own interrupts to run in Protected or Long mode after initialization.
+ can run the BIOS interrupt calls in virtual 8086 mode also to access up to 4GB of memory
+ BIOS keyboard interface interprets keystrokes and key combos to keep track of shift states.
+ It then responds to things like Shift+PrtScrn and Ctrl+Alt+Del
+ Software interrupts is simply an interrupt triggered by software. Calling an interrupt is just like calling a subroutine except you don't need to know its address, only its interrupt number
+ BIOS clients pass most info to BISO in CPU regs. Data to large to return are allocated in tables.
+ interrupt number passed to INT, and function number is given in AH.
+
+3:
+ When we hexdump our basic binary file we see the mov instruction is 0xb8, and the register cx is 1, so 0xb8 becomes 0xb9. If instead we use ecx as our destination register, then we get the prefix 0x66 which swaps operand size from the default (16) to 32.
+ By using the [BTIS 32] directive you can tell the assembler to automatically start using the 32-bit registers, so if you say "cx" it interprets it as "ecx" and you'll see the 0x66 prefix being added to instructions. It doesn't change the processor mode.
+ When using a memory address, opcode for 16-bit cx is 0x8B. 0Eh is the ModR/M byte. 0x0004 is the 16-bit offset. 
+
+4:
+ This was my first chance to write/follow a longer assembly program. It writes a message to the screen without using BIOS calls. Then it prints out a 16-bit value as a hex string. Video addresses start a 000b8000, so we refer to them with b800 in the user segment registers ES and GS.
+ We track xpos and ypos for where to write characters.
+ I like how we used a lookup table to get the 0123456789ABCDEF characters.
+ I got to explore the objdump and ndisasm tools. By using -m i8086 I get the default behaviors I want in this lesson. With -Mintel I can get intel syntax. Need -b binary on objdump.
+
+5:
+ Code showing how we can replace the seg:offset specified in the interrupt vector table. Normally it points to a BIOS routine. Want to print scan codes received from the keyboard.
+ Can also do infinite loop with "jmp $"
+ Normally doing [bx] is relative to the DS, so the same as doing [ds:bx]. So when writing to the IVt we need to explicitly put 0 in gs and do [gs:bx]
+ Each IVT entry has 2 segment bytes and 2 offset bytes. These are in little endian format, so the offset is in the 2 lower bytes and segment in 2 higher bytes.
+ The program initially need only set up the IVT. Then the program can stall and let IRQs be processed by the registered handler.
+
+6:
+ Enter protected mode by switching a single bin in control register (cr0). But before doing so you have to use the LGDT instruction to load the gdtr register with the location of a descriptor table of how processes can access memory.
+ Descriptors are 8 bytes.
+ Byte #5 fields are P-DPB-S-Type:
+ If not P==1, then an exception is raised because it's not in memory
+ DPL Descriptor Privilege level (0 to 3)
+ System bit must be 0 in descriptors for Task State Segments (TSS), Interrupt Gate, Trap Gate, Task Gate, and Call Gates. Otehrwise code/data/stack segment descriptors will be 1
+ Type interpretation depends on S. For S=1, type[3] means code segment (otherwise data), type[2] means "conforming" for code segments and "expand down" for data, type[1] means read allowed for code segments and r/w for data, type[0] means the segment has been accessed already.
+ Fields in byte #6 flags are G-D/B-R-AVL-Size
+ G is granularity of 4K pages instead of bytes
+ D/B - indicates default operand/address size 32-bit (1) 16-bit (0) for code segments and for data segments whether the stack pointer is 32-bit.
+ R is reserved
+ AVL means available for use
+ Size is the top 4 bits of the size, which is 20 bits in total (where are the other 16?).
+
+7:
+ Unreal mode (a.k.a. Big Real or voodoo mode)
+ In protected moe bits 3-15 of the segment register are an index into the descriptor table
+ By going into protected mode we can enable 32-bit offsets in real mode.
+ By providing a selector to DS in protected mode, a segment descriptor cache register is filled with the descriptor values (including size/limit). The cache register is not changed when returning to real mode regardless of if we update DS again. So now 32-bit offsets can be used with the regular real-mode addressing rules of 16*DS+offset.
+
+8:
+ This lesson demonstrates an updated implementation of sprint for the modified memory model that we enabled in lesson 7.
+ I'll try to get this working, but I seem to have a bug. So let's get gdb involved
+ I can compile with debug info using "nasm -g -O0 -f elf boot.asm -o boot.elf"
+ Then to get the flat binary for qemu use "objcopy -O binary boot.elf boot.bin"
+ Next start up Qemu with the processor halted and qemu listening for a gdb connection "qemu-system-i386 -S -gdb tcp::1234 -hda boot.bin"
+ Then in another shell start gdb and use "target remote localhost:1234" to connect
+ We need to load the debug info from the elf file: "symbol-file boot.elf"
+ Then from there we can set breakpoints "b AsmExample" and examine code "list start" and begin debugging by continuing the program with "c"
+ Interestingly, I don't seem to make it to "start" when I perform a jmp. Maybe I haven't linked the file properly with my new commands
+ Looks like I was able to get through the issue after I tweaked the code to look like the example from the osdev "unreal" mode page.

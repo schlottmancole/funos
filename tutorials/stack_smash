@@ -1,0 +1,2 @@
+Stack smash protection will detect compromised stacks to avoid return-oriented hacks.
+Before returning from the user's function, compiler adds code to check if the user overwrote the canary.

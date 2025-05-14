@@ -1,0 +1,14 @@
+
+Global C++ objects need to have their constructors called when loading because the program will expect the objects to be initialized when the program is started.
+For C++ programs, the user's program starts at main(), but the _start symbol is what will parse command line arguments and initialize stdlib, running global constructors, then calling main().
+If using gcc, it may be wise to follow the System V ABI
+The System V ABI specifies use of five different object files that handle program initialization together:
+- crt0.o, crti.o, crtbegin.o, crtend.o, crtn.o
+They implement _init() and _fini()
+Cross-compiler will provide crtbegin.o and crtend.o, I need to provide crti.o and crtn.o
+crt0.o containes the program entry point 
+GCC allows C programs to run functions as global constructors (__attribute__ ((constructor))) void foo(void){}
+In user space the C library provides crti.o and crtn.o
+Compile order is critical because you are working with gcc to build the .init and .fini sections. You need to make sure your headers appear before gcc code and footers appear after.
+You can also execute the global constructors by searching for the .ctors and .dtors sections in an elf file then iterating through those 32-bit pointers.
+In some cases working with GCC they generate code that does some global setup for you. You still need to call it, but you don't have to call every constructor. And that generated code may also perform relocations within the file?
